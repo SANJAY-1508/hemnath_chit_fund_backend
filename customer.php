@@ -40,11 +40,17 @@ if (isset($obj->search_text)) {
         $output["body"]["customer"] = [];
     }
 } elseif (isset($obj->customer_name) && isset($obj->mobile_number) && isset($obj->email_id)) {
-    // <<<<<<<<<<===================== This is to Edit customers =====================>>>>>>>>>>
+
+
     $customer_name = $obj->customer_name;
     $mobile_number = $obj->mobile_number;
     $email_id = $obj->email_id;
-    $password = password_hash($obj->password, PASSWORD_DEFAULT);
+
+    // Handle password
+    $password = null;
+    if (isset($obj->password) && trim($obj->password) !== "") {
+        $password = password_hash($obj->password, PASSWORD_DEFAULT);
+    }
 
     if (!empty($customer_name) && !empty($mobile_number) && !empty($email_id)) {
 
@@ -54,9 +60,11 @@ if (isset($obj->search_text)) {
 
                     if (isset($obj->edit_customer_id)) {
                         $edit_id = $obj->edit_customer_id;
+
                         if ($edit_id) {
-                            // Fetch old customer data for logging
-                            $stmtOld = $conn->prepare("SELECT * FROM `customers` WHERE `customer_id` = ? AND `deleted_at` = 0");
+
+                            // Fetch Old Data
+                            $stmtOld = $conn->prepare("SELECT * FROM customers WHERE customer_id = ? AND deleted_at = 0");
                             $stmtOld->bind_param('s', $edit_id);
                             $stmtOld->execute();
                             $resultOld = $stmtOld->get_result();
@@ -67,36 +75,64 @@ if (isset($obj->search_text)) {
                                 $output["head"]["code"] = 400;
                                 $output["head"]["msg"] = "Customer not found.";
                             } else {
-                                // Perform update
-                                $updateCustomer = "UPDATE `customers` SET `customer_name`='$customer_name', `mobile_number`='$mobile_number', `email_id`='$email_id', `password`='$password' WHERE `customer_id`='$edit_id'";
+
+                                // Build update query based on password
+                                if ($password !== null) {
+                                    // Password given → update password
+                                    $updateCustomer = "
+                                        UPDATE customers 
+                                        SET customer_name='$customer_name',
+                                            mobile_number='$mobile_number',
+                                            email_id='$email_id',
+                                            password='$password'
+                                        WHERE customer_id='$edit_id'
+                                    ";
+                                } else {
+                                    // Password empty → don't update password
+                                    $updateCustomer = "
+                                        UPDATE customers 
+                                        SET customer_name='$customer_name',
+                                            mobile_number='$mobile_number',
+                                            email_id='$email_id'
+                                        WHERE customer_id='$edit_id'
+                                    ";
+                                }
+
                                 if ($conn->query($updateCustomer)) {
-                                    // Fetch new customer data for logging
-                                    $stmtNew = $conn->prepare("SELECT * FROM `customers` WHERE `customer_id` = ?");
+
+                                    // Fetch new data
+                                    $stmtNew = $conn->prepare("SELECT * FROM customers WHERE customer_id = ?");
                                     $stmtNew->bind_param('s', $edit_id);
                                     $stmtNew->execute();
                                     $resultNew = $stmtNew->get_result();
                                     $newCustomer = $resultNew->fetch_assoc();
                                     $stmtNew->close();
 
-                                    // Prepare created_by values
+                                    // created_by details
                                     $created_by_id = isset($obj->created_by_id) ? trim($obj->created_by_id) : null;
                                     $created_by_name = isset($obj->created_by_name) ? trim($obj->created_by_name) : null;
 
-                                    // Set remarks based on source
-                                    if ($created_by_id && $created_by_name) {
-                                        $remarks = "Customer details updated by $created_by_name";
-                                    } else {
-                                        $remarks = "Customer details updated";
-                                    }
+                                    $remarks = $created_by_name
+                                        ? "Customer details updated by $created_by_name"
+                                        : "Customer details updated";
 
-                                    // Log customer history
-                                    logCustomerHistory($oldCustomer['customer_id'], $oldCustomer['customer_no'], 'updated', $oldCustomer, $newCustomer, $remarks, $created_by_id, $created_by_name);
+                                    // Log history
+                                    logCustomerHistory(
+                                        $oldCustomer['customer_id'],
+                                        $oldCustomer['customer_no'],
+                                        'updated',
+                                        $oldCustomer,
+                                        $newCustomer,
+                                        $remarks,
+                                        $created_by_id,
+                                        $created_by_name
+                                    );
 
                                     $output["head"]["code"] = 200;
                                     $output["head"]["msg"] = "Successfully Customer Details Updated";
                                 } else {
                                     $output["head"]["code"] = 400;
-                                    $output["head"]["msg"] = "Failed to connect. Please try again." . $conn->error;
+                                    $output["head"]["msg"] = "Failed to update: " . $conn->error;
                                 }
                             }
                         } else {
