@@ -17,11 +17,8 @@ $output = array();
 date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
 
-
-
-
 if (isset($obj->search_text)) {
-    $sql = "SELECT * FROM `company`";
+    $sql = "SELECT `id`, `company_name`, `address`, `pincode`, `phone`, `mobile`, `gst_no`, `state`, `city`, `img`, `acc_number`, `acc_holder_name`, `bank_name`, `ifsc_code`, `bank_branch`, `deleted_at`, `created_by`, `created_name`, `created_date` FROM `company` WHERE 1";
     $result = $conn->query($sql);
     if ($result->num_rows > 0) {
         if ($row = $result->fetch_assoc()) {
@@ -56,7 +53,6 @@ if (isset($obj->search_text)) {
     $bank_name = $obj->bank_name;
     $ifsc_code = $obj->ifsc_code;
     $bank_branch = $obj->bank_branch;
-
 
     if (!empty($company_name) && !empty($address) && !empty($pincode) && !empty($phone_number) && !empty($city) && !empty($state)) {
 
@@ -101,7 +97,6 @@ else if (isset($obj->image_delete)) {
 
     $image_delete = $obj->image_delete;
 
-
     if ($image_delete === true) {
 
         $status = ImageRemove('company', 1);
@@ -120,8 +115,5 @@ else if (isset($obj->image_delete)) {
     $output["head"]["code"] = 400;
     $output["head"]["msg"] = "Parameter is Mismatch";
 }
-
-
-
 
 echo json_encode($output, JSON_NUMERIC_CHECK);
