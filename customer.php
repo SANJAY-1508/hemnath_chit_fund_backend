@@ -39,14 +39,14 @@ if (isset($obj->search_text)) {
         $output["head"]["msg"] = "Customer Details Not Found";
         $output["body"]["customer"] = [];
     }
-} elseif (isset($obj->customer_name) && isset($obj->mobile_number) && isset($obj->email_id) && isset($obj->password)) {
+} elseif (isset($obj->customer_name) && isset($obj->mobile_number) && isset($obj->email_id)) {
     // <<<<<<<<<<===================== This is to Edit customers =====================>>>>>>>>>>
     $customer_name = $obj->customer_name;
     $mobile_number = $obj->mobile_number;
     $email_id = $obj->email_id;
     $password = password_hash($obj->password, PASSWORD_DEFAULT);
 
-    if (!empty($customer_name) && !empty($mobile_number) && !empty($email_id) && !empty($obj->password)) {
+    if (!empty($customer_name) && !empty($mobile_number) && !empty($email_id)) {
 
         if (!preg_match('/[^a-zA-Z0-9., ]+/', $customer_name)) {
             if (ctype_digit($mobile_number) && strlen($mobile_number) == 10) {
