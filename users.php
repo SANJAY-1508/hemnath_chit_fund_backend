@@ -45,6 +45,7 @@ if (isset($obj->search_text)) {
     }
 } else if (isset($obj->user_name) && isset($obj->phone_number) && isset($obj->password) && isset($obj->role) && isset($obj->user_profile_img)) {
     // <<<<<<<<<<===================== This is to Create and Edit users =====================>>>>>>>>>>
+      $name = $obj->name;
     $user_name = $obj->user_name;
     $phone_number = $obj->phone_number;
     $password = $obj->password;
@@ -64,9 +65,9 @@ if (isset($obj->search_text)) {
                         if (!empty($user_profile_img)) {
                             $outputFilePath = "../uploads/users/";
                             $profile_path = pngImageToWebP($user_profile_img, $outputFilePath);
-                            $updateUser = "UPDATE `user` SET `name`='$user_name', `img`='$profile_path', `phone`='$phone_number', `password`='$password', `role`='$role' WHERE `user_id`='$edit_id'";
+                            $updateUser = "UPDATE `user` SET `name`='$name',`user_name`='$user_name', `img`='$profile_path', `phone`='$phone_number', `password`='$password', `role`='$role' WHERE `user_id`='$edit_id'";
                         } else {
-                            $updateUser = "UPDATE `user` SET `name`='$user_name', `phone`='$phone_number', `password`='$password', `role`='$role' WHERE `user_id`='$edit_id'";
+                            $updateUser = "UPDATE `user` SET `name`='$name',`user_name`='$user_name', `phone`='$phone_number', `password`='$password', `role`='$role' WHERE `user_id`='$edit_id'";
                         }
 
                         if ($conn->query($updateUser)) {
@@ -87,9 +88,9 @@ if (isset($obj->search_text)) {
                         if (!empty($user_profile_img)) {
                             $outputFilePath = "../uploads/users/";
                             $profile_path = pngImageToWebP($user_profile_img, $outputFilePath);
-                            $createUser = "INSERT INTO `user` (`name`, `phone`, `password`, `role`, `created_date`, `img`) VALUES ('$user_name', '$phone_number', '$password', '$role', '$timestamp', '$profile_path')";
+                            $createUser = "INSERT INTO `user` (`name`, `user_name`,`phone`, `password`, `role`, `created_date`, `img`) VALUES ('$name','$user_name', '$phone_number', '$password', '$role', '$timestamp', '$profile_path')";
                         } else {
-                            $createUser = "INSERT INTO `user` (`name`, `phone`, `password`, `role`, `created_date` ) VALUES ('$user_name', '$phone_number', '$password', '$role', '$timestamp')";
+                            $createUser = "INSERT INTO `user` (`name`, `user_name`,`phone`, `password`, `role`, `created_date` ) VALUES ('$name','$user_name', '$phone_number', '$password', '$role', '$timestamp')";
                         }
 
                         if ($conn->query($createUser)) {
