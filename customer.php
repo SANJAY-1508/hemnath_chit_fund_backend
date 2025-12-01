@@ -55,13 +55,49 @@ if (isset($obj->search_text)) {
                     if (isset($obj->edit_customer_id)) {
                         $edit_id = $obj->edit_customer_id;
                         if ($edit_id) {
-                            $updateCustomer = "UPDATE `customers` SET `customer_name`='$customer_name', `mobile_number`='$mobile_number', `email_id`='$email_id', `password`='$password' WHERE `customer_id`='$edit_id'";
-                            if ($conn->query($updateCustomer)) {
-                                $output["head"]["code"] = 200;
-                                $output["head"]["msg"] = "Successfully Customer Details Updated";
-                            } else {
+                            // Fetch old customer data for logging
+                            $stmtOld = $conn->prepare("SELECT * FROM `customers` WHERE `customer_id` = ? AND `deleted_at` = 0");
+                            $stmtOld->bind_param('s', $edit_id);
+                            $stmtOld->execute();
+                            $resultOld = $stmtOld->get_result();
+                            $oldCustomer = $resultOld->fetch_assoc();
+                            $stmtOld->close();
+
+                            if (!$oldCustomer) {
                                 $output["head"]["code"] = 400;
-                                $output["head"]["msg"] = "Failed to connect. Please try again." . $conn->error;
+                                $output["head"]["msg"] = "Customer not found.";
+                            } else {
+                                // Perform update
+                                $updateCustomer = "UPDATE `customers` SET `customer_name`='$customer_name', `mobile_number`='$mobile_number', `email_id`='$email_id', `password`='$password' WHERE `customer_id`='$edit_id'";
+                                if ($conn->query($updateCustomer)) {
+                                    // Fetch new customer data for logging
+                                    $stmtNew = $conn->prepare("SELECT * FROM `customers` WHERE `customer_id` = ?");
+                                    $stmtNew->bind_param('s', $edit_id);
+                                    $stmtNew->execute();
+                                    $resultNew = $stmtNew->get_result();
+                                    $newCustomer = $resultNew->fetch_assoc();
+                                    $stmtNew->close();
+
+                                    // Prepare created_by values
+                                    $created_by_id = isset($obj->created_by_id) ? trim($obj->created_by_id) : null;
+                                    $created_by_name = isset($obj->created_by_name) ? trim($obj->created_by_name) : null;
+
+                                    // Set remarks based on source
+                                    if ($created_by_id && $created_by_name) {
+                                        $remarks = "Customer details updated by $created_by_name";
+                                    } else {
+                                        $remarks = "Customer details updated";
+                                    }
+
+                                    // Log customer history
+                                    logCustomerHistory($oldCustomer['customer_id'], $oldCustomer['customer_no'], 'updated', $oldCustomer, $newCustomer, $remarks, $created_by_id, $created_by_name);
+
+                                    $output["head"]["code"] = 200;
+                                    $output["head"]["msg"] = "Successfully Customer Details Updated";
+                                } else {
+                                    $output["head"]["code"] = 400;
+                                    $output["head"]["msg"] = "Failed to connect. Please try again." . $conn->error;
+                                }
                             }
                         } else {
                             $output["head"]["code"] = 400;
@@ -92,8 +128,8 @@ if (isset($obj->search_text)) {
     $delete_customer_id = $obj->delete_customer_id;
     if (!empty($delete_customer_id)) {
         if ($delete_customer_id) {
-            // First, get the internal customer ID
-            $stmt = $conn->prepare("SELECT `id` FROM `customers` WHERE `customer_id` = ? AND `deleted_at` = 0");
+            // First, get the internal customer ID and old data
+            $stmt = $conn->prepare("SELECT * FROM `customers` WHERE `customer_id` = ? AND `deleted_at` = 0");
             $stmt->bind_param('s', $delete_customer_id);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -101,8 +137,8 @@ if (isset($obj->search_text)) {
                 $output["head"]["code"] = 404;
                 $output["head"]["msg"] = "Customer not found.";
             } else {
-                $customer = $result->fetch_assoc();
-                $internal_customer_id = $customer['id'];
+                $oldCustomer = $result->fetch_assoc();
+                $internal_customer_id = $oldCustomer['id'];
 
                 // Soft delete related chits
                 $deleteChits = $conn->prepare("UPDATE `chits` SET `deleted_at` = 1, `deleted_at_datetime` = NOW() WHERE `customer_id` = ?");
@@ -117,6 +153,20 @@ if (isset($obj->search_text)) {
                 $deleteCustomer->close();
 
                 if ($customer_deleted && $chits_deleted) {
+                    // Prepare created_by values
+                    $created_by_id = isset($obj->created_by_id) ? trim($obj->created_by_id) : null;
+                    $created_by_name = isset($obj->created_by_name) ? trim($obj->created_by_name) : null;
+
+                    // Set remarks based on source
+                    if ($created_by_id && $created_by_name) {
+                        $remarks = "Customer deleted by $created_by_name";
+                    } else {
+                        $remarks = "Customer deleted";
+                    }
+
+                    // Log customer history
+                    logCustomerHistory($oldCustomer['customer_id'], $oldCustomer['customer_no'], 'deleted', $oldCustomer, null, $remarks, $created_by_id, $created_by_name);
+
                     $output["head"]["code"] = 200;
                     $output["head"]["msg"] = "Successfully Customer and related Chits Deleted.";
                 } else {
