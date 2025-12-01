@@ -116,11 +116,19 @@ if ($action === 'create_chit') {
 2️⃣  LIST CHITS ( FOR A CUSTOMER )
 ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  == */ elseif ($action === 'list_chits') {
 
-    $stmt = $conn->prepare("SELECT c.*, s.scheme_name, s.schemet_due_amount, s.scheme_maturtiy_amount 
-                            FROM `chits` c 
-                            JOIN `schemes` s ON c.scheme_id = s.id 
-                            WHERE c.deleted_at = 0 
-                            ORDER BY c.id DESC");
+    $stmt = $conn->prepare("
+        SELECT 
+            c.*, 
+            s.scheme_name, 
+            s.schemet_due_amount, 
+            s.scheme_maturtiy_amount,
+            cust.customer_name
+        FROM `chits` c
+        JOIN `schemes` s ON c.scheme_id = s.id
+        JOIN `customers` cust ON cust.id = c.customer_id
+        WHERE c.deleted_at = 0
+        ORDER BY c.id DESC
+    ");
 
     $stmt->execute();
     $result = $stmt->get_result();
@@ -131,13 +139,19 @@ if ($action === 'create_chit') {
     }
 
     $output = [
-        'head' => ['code' => 200, 'msg' => 'All Chit List Retrieved'],
-        'body' => ['chits' => $chits]
+        "head" => [
+            "code" => 200,
+            "msg"  => "All Chit List Retrieved"
+        ],
+        "body" => [
+            "chits" => $chits
+        ]
     ];
 
     echo json_encode($output);
     exit();
 }
+
 // elseif ( $action === 'list_chits' && isset( $obj->customer_id ) ) {
 //     $customer_id_str = trim( $obj->customer_id );
 
