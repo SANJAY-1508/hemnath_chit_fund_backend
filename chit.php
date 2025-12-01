@@ -44,7 +44,7 @@ if ($action === 'create_chit') {
     $start_date = isset($obj->start_date) ? trim($obj->start_date) : date('Y-m-d');
 
     // Fetch internal customer_id
-    $stmtCust = $conn->prepare('SELECT `id` FROM `customers` WHERE `customer_id` = ? AND `deleted_at` = 0');
+    $stmtCust = $conn->prepare('SELECT `id`, `customer_no` FROM `customers` WHERE `customer_id` = ? AND `deleted_at` = 0');
     $stmtCust->bind_param('s', $customer_id_str);
     $stmtCust->execute();
     $resultCust = $stmtCust->get_result();
@@ -54,6 +54,7 @@ if ($action === 'create_chit') {
     }
     $customer = $resultCust->fetch_assoc();
     $customer_id = $customer['id'];
+    $customer_no = $customer['customer_no'];
 
     // Fetch internal scheme_id and details
     $stmtScheme = $conn->prepare('SELECT `id`, `duration`, `schemet_due_amount`, `duration_unit` FROM `schemes` WHERE `scheme_id` = ? AND `deleted_at` = 0');
@@ -101,6 +102,28 @@ if ($action === 'create_chit') {
             $stmtDue->execute();
             $stmtDue->close();
         }
+
+        // Fetch chit details for logging
+        $stmtChitGet = $conn->prepare("SELECT * FROM `chits` WHERE `id` = ?");
+        $stmtChitGet->bind_param('i', $insertId);
+        $stmtChitGet->execute();
+        $chitResult = $stmtChitGet->get_result();
+        $newChit = $chitResult->fetch_assoc();
+        $stmtChitGet->close();
+
+        // Prepare created_by values
+        $created_by_id = isset($obj->created_by_id) ? trim($obj->created_by_id) : null;
+        $created_by_name = isset($obj->created_by_name) ? trim($obj->created_by_name) : null;
+
+        // Set remarks based on source
+        if ($created_by_id && $created_by_name) {
+            $remarks = "Chit created by $created_by_name";
+        } else {
+            $remarks = "Chit created";
+        }
+
+        // Log customer history
+        logCustomerHistory($customer_id_str, $customer_no, 'chit_created', null, $newChit, $remarks, $created_by_id, $created_by_name);
 
         $output = ['head' => ['code' => 200, 'msg' => 'Chit Created Successfully'], 'body' => ['chit_id' => $chit_id, 'chit_no' => $chit_no]];
     } else {
@@ -245,19 +268,23 @@ if ($action === 'create_chit') {
     $conn->begin_transaction();
 
     try {
-        // Lock and fetch due + chit details
+        // Lock and fetch due + chit details (include customer for logging)
         $stmtDue = $conn->prepare("
             SELECT 
                 d.*, 
                 c.id AS chit_id, 
+                c.chit_id AS chit_no,
                 c.paid_count, 
                 c.pending_count, 
                 c.total_paid_amount, 
                 c.total_dues,
-                c.status AS chit_status
+                c.status AS chit_status,
+                cu.customer_id AS customer_id_str,
+                cu.customer_no
             FROM `chit_dues` d 
             JOIN `chits` c ON d.chit_id = c.id 
-            WHERE d.id = ? AND c.deleted_at = 0
+            JOIN `customers` cu ON c.customer_id = cu.id
+            WHERE d.id = ? AND c.deleted_at = 0 AND cu.deleted_at = 0
             FOR UPDATE
         ");
         $stmtDue->bind_param('i', $due_id);
@@ -270,10 +297,14 @@ if ($action === 'create_chit') {
 
         $due = $resultDue->fetch_assoc();
         $chit_id = $due['chit_id'];
+        $customer_id_str = $due['customer_id_str'];
+        $customer_no = $due['customer_no'];
 
         if ($due['status'] === 'paid') {
             throw new Exception('Due already paid', 400);
         }
+
+        $oldDue = $due; // For logging
 
         $remaining = $due['due_amount'] - $due['paid_amount'];
         if ($amount > $remaining) {
@@ -331,6 +362,44 @@ if ($action === 'create_chit') {
 
         $conn->commit();
 
+        // Fetch updated due for logging
+        $stmtUpdatedDue = $conn->prepare("SELECT * FROM `chit_dues` WHERE `id` = ?");
+        $stmtUpdatedDue->bind_param('i', $due_id);
+        $stmtUpdatedDue->execute();
+        $updatedDueResult = $stmtUpdatedDue->get_result();
+        $newDue = $updatedDueResult->fetch_assoc();
+        $stmtUpdatedDue->close();
+
+        // Prepare old and new values for logging (only due relevant info)
+        $oldValue = [
+            'due_id' => $oldDue['id'],
+            'due_number' => $oldDue['due_number'],
+            'old_paid_amount' => $oldDue['paid_amount'],
+            'old_status' => $oldDue['status']
+        ];
+
+        $newValue = [
+            'due_id' => $newDue['id'],
+            'due_number' => $newDue['due_number'],
+            'new_paid_amount' => $newDue['paid_amount'],
+            'new_status' => $newDue['status'],
+            'amount_paid' => $amount
+        ];
+
+        // Prepare created_by values
+        $created_by_id = isset($obj->created_by_id) ? trim($obj->created_by_id) : null;
+        $created_by_name = isset($obj->created_by_name) ? trim($obj->created_by_name) : null;
+
+        // Set remarks based on source
+        if ($created_by_id && $created_by_name) {
+            $remarks = "Due payment processed by $created_by_name";
+        } else {
+            $remarks = "Due payment processed";
+        }
+
+        // Log customer history
+        logCustomerHistory($customer_id_str, $customer_no, 'due_paid', $oldValue, $newValue, $remarks, $created_by_id, $created_by_name);
+
         $output = [
             'head' => ['code' => 200, 'msg' => 'Payment Processed Successfully'],
             'body' => [
@@ -358,8 +427,8 @@ if ($action === 'create_chit') {
 ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  == */ elseif ($action === 'foreclose_chit' && isset($obj->chit_id)) {
     $chit_id_str = trim($obj->chit_id);
 
-    // Fetch chit
-    $stmtChit = $conn->prepare('SELECT `id`, `paid_count`, `status` FROM `chits` WHERE `chit_id` = ? AND `deleted_at` = 0');
+    // Fetch chit (include customer for logging)
+    $stmtChit = $conn->prepare('SELECT c.*, cu.customer_id AS customer_id_str, cu.customer_no FROM `chits` c JOIN `customers` cu ON c.customer_id = cu.id WHERE c.`chit_id` = ? AND c.`deleted_at` = 0 AND cu.`deleted_at` = 0');
     $stmtChit->bind_param('s', $chit_id_str);
     $stmtChit->execute();
     $resultChit = $stmtChit->get_result();
@@ -367,21 +436,46 @@ if ($action === 'create_chit') {
         echo json_encode(['head' => ['code' => 404, 'msg' => 'Chit not found']]);
         exit();
     }
-    $chit = $resultChit->fetch_assoc();
+    $oldChit = $resultChit->fetch_assoc();
+    $chit_internal_id = $oldChit['id'];
+    $customer_id_str = $oldChit['customer_id_str'];
+    $customer_no = $oldChit['customer_no'];
 
-    if ($chit['status'] !== 'active') {
+    if ($oldChit['status'] !== 'active') {
         echo json_encode(['head' => ['code' => 400, 'msg' => 'Chit not active']]);
         exit();
     }
-    if ($chit['paid_count'] < 3) {
+    if ($oldChit['paid_count'] < 3) {
         echo json_encode(['head' => ['code' => 400, 'msg' => 'Minimum 3 dues must be paid for foreclosure']]);
         exit();
     }
 
     // Update status
     $stmtUpdate = $conn->prepare("UPDATE `chits` SET `status` = 'foreclosed', `updated_at` = NOW() WHERE `id` = ?");
-    $stmtUpdate->bind_param('i', $chit['id']);
+    $stmtUpdate->bind_param('i', $chit_internal_id);
     $stmtUpdate->execute();
+
+    // Fetch updated chit for logging
+    $stmtUpdatedChit = $conn->prepare("SELECT * FROM `chits` WHERE `id` = ?");
+    $stmtUpdatedChit->bind_param('i', $chit_internal_id);
+    $stmtUpdatedChit->execute();
+    $updatedChitResult = $stmtUpdatedChit->get_result();
+    $newChit = $updatedChitResult->fetch_assoc();
+    $stmtUpdatedChit->close();
+
+    // Prepare created_by values
+    $created_by_id = isset($obj->created_by_id) ? trim($obj->created_by_id) : null;
+    $created_by_name = isset($obj->created_by_name) ? trim($obj->created_by_name) : null;
+
+    // Set remarks based on source
+    if ($created_by_id && $created_by_name) {
+        $remarks = "Chit foreclosed by $created_by_name";
+    } else {
+        $remarks = "Chit foreclosed";
+    }
+
+    // Log customer history
+    logCustomerHistory($customer_id_str, $customer_no, 'chit_foreclosed', $oldChit, $newChit, $remarks, $created_by_id, $created_by_name);
 
     $output = ['head' => ['code' => 200, 'msg' => 'Chit Foreclosed Successfully']];
 
