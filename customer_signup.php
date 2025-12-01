@@ -71,8 +71,19 @@ if ($action === "signup" && isset($obj->customer_name) && isset($obj->mobile_num
                     $result = $stmtGet->get_result();
                     $customer = $result->fetch_assoc();
 
+                    // Prepare created_by values
+                    $created_by_id = isset($obj->created_by_id) ? trim($obj->created_by_id) : null;
+                    $created_by_name = isset($obj->created_by_name) ? trim($obj->created_by_name) : null;
 
-                    logCustomerHistory($customer['customer_id'], $customer['customer_no'], 'created', null, $customer, 'Customer signed up successfully', null, null);
+                    // Set remarks based on source
+                    if ($created_by_id && $created_by_name) {
+                        $remarks = "Customer created by $created_by_name";
+                    } else {
+                        $remarks = "Customer signed up successfully";
+                    }
+
+
+                    logCustomerHistory($customer['customer_id'], $customer['customer_no'], 'created', null, $customer, $remarks, $created_by_id, $created_by_name);
 
                     $output = [
                         "head" => ["code" => 200, "msg" => "Signup Successful"],
