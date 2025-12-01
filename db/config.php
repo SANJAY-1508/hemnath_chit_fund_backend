@@ -130,3 +130,19 @@ function ImageRemove($string, $id)
     }
     return $status;
 }
+
+// Log customer history
+function logCustomerHistory($customer_id, $customer_no, $action_type, $old_value = null, $new_value = null, $remarks = null, $created_by_id = null, $created_by_name = null)
+{
+    global $conn, $timestamp;
+    $old_value = $old_value ? json_encode($old_value, JSON_NUMERIC_CHECK) : null;
+    $new_value = $new_value ? json_encode($new_value, JSON_NUMERIC_CHECK) : null;
+    $sql = "INSERT INTO `customer_history` (`customer_id`, `customer_no`, `action_type`, `old_value`, `new_value`, `remarks`, `created_by_id`, `created_by_name`, `created_at`) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("sssssssss", $customer_id, $customer_no, $action_type, $old_value, $new_value, $remarks, $created_by_id, $created_by_name, $timestamp);
+        $stmt->execute();
+        $stmt->close();
+    }
+}

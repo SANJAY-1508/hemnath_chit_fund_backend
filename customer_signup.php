@@ -38,8 +38,8 @@ if ($action === "signup" && isset($obj->customer_name) && isset($obj->mobile_num
 
         if (is_numeric($mobile_number) && strlen($mobile_number) == 10) {
             // Check if mobile number already exists
-          $stmt = $conn->prepare("SELECT * FROM `customers` WHERE (`mobile_number` = ? OR `email_id` = ?) AND `deleted_at` = 0");
-$stmt->bind_param("ss", $mobile_number, $email_id);
+            $stmt = $conn->prepare("SELECT * FROM `customers` WHERE (`mobile_number` = ? OR `email_id` = ?) AND `deleted_at` = 0");
+            $stmt->bind_param("ss", $mobile_number, $email_id);
 
             $stmt->execute();
             $mobileCheck = $stmt->get_result();
@@ -71,6 +71,9 @@ $stmt->bind_param("ss", $mobile_number, $email_id);
                     $result = $stmtGet->get_result();
                     $customer = $result->fetch_assoc();
 
+
+                    logCustomerHistory($customer['customer_id'], $customer['customer_no'], 'created', null, $customer, 'Customer signed up successfully', null, null);
+
                     $output = [
                         "head" => ["code" => 200, "msg" => "Signup Successful"],
                         "body" => ["customer" => $customer]
@@ -99,4 +102,3 @@ else {
     echo json_encode(["head" => ["code" => 400, "msg" => "Invalid action parameter"]]);
     exit;
 }
-?>
