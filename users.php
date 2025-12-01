@@ -20,13 +20,13 @@ $timestamp = date('Y-m-d H:i:s');
 if (isset($obj->search_text)) {
     // <<<<<<<<<<===================== This is to list users =====================>>>>>>>>>>
     $search_text = $obj->search_text;
-    $sql = "SELECT * FROM `user` WHERE `deleted_at` = 0 AND `name` LIKE '%$search_text%'";
+    $sql = "SELECT `id`, `user_id`,`user_name`, `name`, `phone`, `img`, `role`, `password`, `deleted_at`, `created_date` FROM `user` WHERE `deleted_at` = 0 AND `name` LIKE '%$search_text%'";
     $result = $conn->query($sql);
     if ($result->num_rows > 0) {
+        $output["head"]["code"] = 200;
+        $output["head"]["msg"] = "Success";
         $count = 0;
         while ($row = $result->fetch_assoc()) {
-            $output["head"]["code"] = 200;
-            $output["head"]["msg"] = "Success";
             $output["body"]["user"][$count] = $row;
             $imgLink = null;
             if ($row["img"] != null && $row["img"] != 'null' && strlen($row["img"]) > 0) {
@@ -35,7 +35,6 @@ if (isset($obj->search_text)) {
             } else {
                 $output["body"]["user"][$count]["img"] = $imgLink;
             }
-            $imgLink = null;
             $count++;
         }
     } else {
@@ -43,9 +42,9 @@ if (isset($obj->search_text)) {
         $output["head"]["msg"] = "User Details Not Found";
         $output["body"]["user"] = [];
     }
-} else if (isset($obj->user_name) && isset($obj->phone_number) && isset($obj->password) && isset($obj->role) && isset($obj->user_profile_img)) {
+} else if (isset($obj->name) && isset($obj->user_name) && isset($obj->phone_number) && isset($obj->password) && isset($obj->role) && isset($obj->user_profile_img)) {
     // <<<<<<<<<<===================== This is to Create and Edit users =====================>>>>>>>>>>
-      $name = $obj->name;
+    $name = $obj->name;
     $user_name = $obj->user_name;
     $phone_number = $obj->phone_number;
     $password = $obj->password;
@@ -151,8 +150,7 @@ if (isset($obj->search_text)) {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
     }
-} else
-if (isset($obj->delete_user_id)) {
+} else if (isset($obj->delete_user_id)) {
     // <<<<<<<<<<===================== This is to Delete the users =====================>>>>>>>>>>
     $delete_user_id = $obj->delete_user_id;
     if (!empty($delete_user_id)) {
@@ -179,7 +177,7 @@ if (isset($obj->delete_user_id)) {
     $password = $obj->password;
 
     if (!empty($phone) && !empty($password)) {
-        $loginCheck = $conn->query("SELECT * FROM `user` WHERE `phone`='$phone' AND `password`='$password' AND `deleted_at`=0");
+        $loginCheck = $conn->query("SELECT `id`, `user_id`, `name`, `phone`, `img`, `role`, `password`, `deleted_at`, `created_date` FROM `user` WHERE `phone`='$phone' AND `password`='$password' AND `deleted_at`=0");
         if ($loginCheck->num_rows > 0) {
             $user = $loginCheck->fetch_assoc();
             $output["head"]["code"] = 200;
