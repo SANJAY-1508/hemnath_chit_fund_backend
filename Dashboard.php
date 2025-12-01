@@ -1,6 +1,7 @@
 <?php
 
 include 'db/config.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -10,61 +11,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
+// Read JSON input
 $json = file_get_contents('php://input');
-$obj = json_decode($json);
-$output = array();
+$obj = json_decode($json, true);
+
+// Default output
+$output = [];
 
 date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
 
-if (isset($obj->list_history)) {
-    $customer_id = isset($obj->customer_id) ? $obj->customer_id : null;
-    $customer_no = isset($obj->customer_no) ? $obj->customer_no : null;
+// Extract action from input
+$action = isset($obj['action']) ? $obj['action'] : null;
 
-    $sql = "SELECT `id`, `customer_id`, `customer_no`, `action_type`, `old_value`, `new_value`, `remarks`, `created_at` FROM `customer_history` WHERE 1";
-    $params = [];
-    $types = "";
+// Dashboard API Route
+if ($action === 'dashboard') {
 
-    if (!empty($customer_id)) {
-        $sql .= " AND `customer_id` = ?";
-        $params[] = $customer_id;
-        $types .= "s";
-    }
-    if (!empty($customer_no)) {
-        $sql .= " AND `customer_no` = ?";
-        $params[] = $customer_no;
-        $types .= "s";
-    }
+    // Total Active Customers
+    $query = "SELECT COUNT(*) AS customer_count FROM `customers` WHERE `deleted_at` = 0";
+    $customer_count = $conn->query($query)->fetch_assoc()['customer_count'];
 
-    $sql .= " ORDER BY `created_at` DESC";
-    $stmt = $conn->prepare($sql);
+    // Overdue Payments
+    $query = "SELECT COUNT(*) AS overdue_count 
+              FROM `chit_dues` cd 
+              JOIN `chits` c ON cd.chit_id = c.id 
+              WHERE c.`deleted_at` = 0 
+              AND cd.`due_date` < CURDATE() 
+              AND cd.`status` = 'pending'";
+    $overdue_count = $conn->query($query)->fetch_assoc()['overdue_count'];
 
-    if (!empty($params)) {
-        $stmt->bind_param($types, ...$params);
-    }
+    // Today's Dues
+    $query = "SELECT COUNT(*) AS current_due_count 
+              FROM `chit_dues` cd 
+              JOIN `chits` c ON cd.chit_id = c.id 
+              WHERE c.`deleted_at` = 0 
+              AND cd.`due_date` = CURDATE() 
+              AND cd.`status` = 'pending'";
+    $current_due_count = $conn->query($query)->fetch_assoc()['current_due_count'];
 
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $history = $result->num_rows > 0 ? $result->fetch_all(MYSQLI_ASSOC) : [];
+    // Total Paid
+    $query = "SELECT COUNT(*) AS paid_count 
+              FROM `chit_dues` cd 
+              JOIN `chits` c ON cd.chit_id = c.id 
+              WHERE c.`deleted_at` = 0 
+              AND cd.`status` = 'paid'";
+    $paid_count = $conn->query($query)->fetch_assoc()['paid_count'];
 
-    foreach ($history as &$record) {
-        try {
-            $record['old_value'] = $record['old_value'] ? json_decode($record['old_value'], true) : null;
-            $record['new_value'] = $record['new_value'] ? json_decode($record['new_value'], true) : null;
-        } catch (Exception $e) {
-            $record['old_value'] = null;
-            $record['new_value'] = null;
-        }
-    }
+    // Final Output
+    $output = [
+        "head" => [
+            "code" => 200,
+            "msg" => "Dashboard data retrieved successfully"
+        ],
+        "body" => [
+            "customer_count" => (int)$customer_count,
+            "overdue_count" => (int)$overdue_count,
+            "current_due_count" => (int)$current_due_count,
+            "paid_count" => (int)$paid_count
+        ]
+    ];
 
-    $output["body"]["history"] = $history;
-    $output["head"]["code"] = 200;
-    $output["head"]["msg"] = $result->num_rows > 0 ? "Success" : "No History Found";
-    $stmt->close();
-} else {
-    $output["head"]["code"] = 400;
-    $output["head"]["msg"] = "Parameter Mismatch";
-    $output["head"]["inputs"] = $obj;
+    echo json_encode($output, JSON_NUMERIC_CHECK);
+    exit();
 }
+
+
+// If invalid action
+$output = [
+    "head" => [
+        "code" => 400,
+        "msg" => "Parameter Mismatch",
+        "inputs" => $obj
+    ]
+];
 
 echo json_encode($output, JSON_NUMERIC_CHECK);
