@@ -307,7 +307,7 @@ if ($action === 'dashboard') {
               WHERE cd.`status` = 'paid' 
                 AND c.`deleted_at` = 0
               ORDER BY cd.`paid_date` DESC 
-              LIMIT 5";
+              LIMIT 10";
 
     $result = $conn->query($query);
 
