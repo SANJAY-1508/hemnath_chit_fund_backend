@@ -449,7 +449,7 @@ if ($action === 'create_chit') {
     $customer_no = $oldChit['customer_no'];
 
     if ($oldChit['status'] !== 'active') {
-        echo json_encode(['head' => ['code' => 400, 'msg' => 'Chit not active']]);
+        echo json_encode(['head' => ['code' => 400, 'msg' => 'Chit is closed']]);
         exit();
     }
     if ($oldChit['paid_count'] < 3) {
