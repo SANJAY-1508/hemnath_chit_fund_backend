@@ -255,7 +255,7 @@ if ($action === 'create_chit') {
 
 /* ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ==
 4️⃣  PAY DUE ( PARTIAL OR FULL )
-===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  == */ elseif ($action === 'pay_due' && isset($obj->due_id) && isset($obj->amount)) {
+===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  == */ else if ($action === 'pay_due' && isset($obj->due_id) && isset($obj->amount)) {
     $due_id = intval($obj->due_id);
     $amount = floatval($obj->amount);
 
@@ -313,11 +313,18 @@ if ($action === 'create_chit') {
         }
 
         $new_paid_amount = $due['paid_amount'] + $amount;
-        $was_pending = ($due['status'] === 'pending');
         $now_paid = ($new_paid_amount >= $due['due_amount']);
 
-        $new_status = $now_paid ? 'paid' : 'pending';
-        $paid_date = $now_paid ? $timestamp : null;
+        if ($now_paid) {
+            $new_status = 'paid';
+            $paid_date = $timestamp;
+        } elseif ($new_paid_amount > 0) {
+            $new_status = 'partial';
+            $paid_date = null;
+        } else {
+            $new_status = 'pending';
+            $paid_date = null;
+        }
 
         // Update chit_due
         $stmtUpdateDue = $conn->prepare("
@@ -333,8 +340,8 @@ if ($action === 'create_chit') {
         $new_paid_count = $due['paid_count'];
         $new_pending_count = $due['pending_count'];
 
-        // Only increment paid_count if this due just became fully paid
-        if ($now_paid && $was_pending) {
+        // Only increment paid_count if this due just became fully paid (from pending or partial)
+        if ($now_paid && $due['status'] !== 'paid') {
             $new_paid_count++;
             $new_pending_count--;
         }
