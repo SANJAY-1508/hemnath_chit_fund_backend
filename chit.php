@@ -136,8 +136,8 @@ if ($action === 'create_chit') {
 }
 
 /* ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ==
-2️⃣  LIST CHITS ( FOR A CUSTOMER )
-===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  == */ elseif ($action === 'list_chits') {
+2️⃣  LIST CHITS ( FOR A CUSTOMER  - Web)
+===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  == */ elseif ($action === 'list_web_chits') {
 
     $stmt = $conn->prepare("
         SELECT 
@@ -175,43 +175,45 @@ if ($action === 'create_chit') {
     exit();
 }
 
-// elseif ( $action === 'list_chits' && isset( $obj->customer_id ) ) {
-//     $customer_id_str = trim( $obj->customer_id );
+/* ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ==
+2️⃣  LIST CHITS ( FOR A CUSTOMER - MOBILE )
+===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  == */ elseif ($action === 'list_chits' && isset($obj->customer_id)) {
+    $customer_id_str = trim($obj->customer_id);
 
-//     // Fetch internal customer_id
-//     $stmtCust = $conn->prepare( 'SELECT `id` FROM `customers` WHERE `customer_id` = ? AND `deleted_at` = 0' );
-//     $stmtCust->bind_param( 's', $customer_id_str );
-//     $stmtCust->execute();
-//     $resultCust = $stmtCust->get_result();
-//     if ( $resultCust->num_rows === 0 ) {
-//         echo json_encode( [ 'head' => [ 'code' => 404, 'msg' => 'Customer not found' ] ] );
-//         exit();
-//     }
-//     $customer = $resultCust->fetch_assoc();
-//     $customer_id = $customer[ 'id' ];
+    // Fetch internal customer_id
+    $stmtCust = $conn->prepare('SELECT `id` FROM `customers` WHERE `customer_id` = ? AND `deleted_at` = 0');
+    $stmtCust->bind_param('s', $customer_id_str);
+    $stmtCust->execute();
+    $resultCust = $stmtCust->get_result();
+    if ($resultCust->num_rows === 0) {
+        echo json_encode(['head' => ['code' => 404, 'msg' => 'Customer not found']]);
+        exit();
+    }
+    $customer = $resultCust->fetch_assoc();
+    $customer_id = $customer['id'];
 
-//     $stmt = $conn->prepare( "SELECT c.*, s.scheme_name, s.schemet_due_amount, s.scheme_maturtiy_amount 
-//                             FROM `chits` c 
-//                             JOIN `schemes` s ON c.scheme_id = s.id 
-//                             WHERE c.customer_id = ? AND c.deleted_at = 0 
-//                             ORDER BY c.id DESC" );
-//     $stmt->bind_param( 'i', $customer_id );
-//     $stmt->execute();
-//     $result = $stmt->get_result();
+    $stmt = $conn->prepare("SELECT c.*, s.scheme_name, s.schemet_due_amount, s.scheme_maturtiy_amount 
+                            FROM `chits` c 
+                            JOIN `schemes` s ON c.scheme_id = s.id 
+                            WHERE c.customer_id = ? AND c.deleted_at = 0 
+                            ORDER BY c.id DESC");
+    $stmt->bind_param('i', $customer_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-//     $chits = [];
-//     while ( $row = $result->fetch_assoc() ) {
-//         $chits[] = $row;
-//     }
+    $chits = [];
+    while ($row = $result->fetch_assoc()) {
+        $chits[] = $row;
+    }
 
-//     $output = [
-//         'head' => [ 'code' => 200, 'msg' => 'Chit List Retrieved' ],
-//         'body' => [ 'chits' => $chits ]
-// ];
+    $output = [
+        'head' => ['code' => 200, 'msg' => 'Chit List Retrieved'],
+        'body' => ['chits' => $chits]
+    ];
 
-//     echo json_encode( $output );
-//     exit();
-// }
+    echo json_encode($output);
+    exit();
+}
 
 /* ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ==
 3️⃣  GET CHIT DETAILS ( INCLUDING DUES, PAID/PENDING )
