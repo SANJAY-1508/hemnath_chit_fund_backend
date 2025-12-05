@@ -98,7 +98,7 @@ if (isset($obj->search_text)) {
 
                 if (!empty($image_url)) {
 
-                    $outputFilePath = "./uploads/banner_one/";
+                    $outputFilePath = "../uploads/banner_one/";
 
                     // Create folder automatically if missing
                     if (!file_exists($outputFilePath)) {
