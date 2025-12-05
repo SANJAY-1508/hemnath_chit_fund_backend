@@ -47,40 +47,66 @@ function alphaNumericCheck($data)
 
 function pngImageToWebP($data, $file_path)
 {
+    if (empty($data)) {
+        error_log('No image data provided, skipping conversion.');
+        return false; // or return null if you want to indicate "no image"
+    }
+
     if (!extension_loaded('gd')) {
-        error_log('GD extension is not available.');
+        error_log('GD extension is not available. Please install or enable the GD extension.');
         return false;
     }
 
+    // Remove data URI prefix (e.g., "data:image/png;base64,")
+    if (preg_match('/^data:image\/[a-z]+;base64,/', $data)) {
+        $data = preg_replace('/^data:image\/[a-z]+;base64,/', '', $data);
+    }
+
     $imageData = base64_decode($data);
-    if ($imageData === false) {
-        error_log('Failed to decode base64 data.');
+    if ($imageData === false || empty($imageData)) {
+        error_log('Failed to decode base64 image data or data is empty.');
+        return false;
+    }
+
+    $sourceImage = @imagecreatefromstring($imageData);
+    if ($sourceImage === false) {
+        error_log('Failed to create the source image. Possibly invalid data.');
+        return false;
+    }
+
+    if (!is_dir($file_path)) {
+        if (!mkdir($file_path, 0775, true)) {
+            error_log('Failed to create directory: ' . $file_path);
+            imagedestroy($sourceImage);
+            return false;
+        }
+    }
+
+    date_default_timezone_set('Asia/Calcutta');
+    $timestamp = str_replace([' ', ':'], '-', date('Y-m-d H:i:s'));
+    $file_pathnew = $file_path . $timestamp . ".webp";
+    $retunfilename = $timestamp . ".webp";
+
+    if (!is_writable($file_path)) {
+        error_log('Directory is not writable: ' . $file_path);
+        imagedestroy($sourceImage);
         return false;
     }
 
     try {
-        $sourceImage = imagecreatefromstring($imageData);
-        if ($sourceImage === false) {
-            throw new Exception('Failed to create the source image. Data might not be in a recognized image format.');
-        }
-
-        date_default_timezone_set('Asia/Calcutta');
-        $timestamp = date('Y-m-d H:i:s');
-        $timestamp = str_replace(array(" ", ":"), "-", $timestamp);
-        $file_pathnew = $file_path . $timestamp . ".webp";
-        $returnFilename = $timestamp . ".webp";
-
         if (!imagewebp($sourceImage, $file_pathnew, 80)) {
-            throw new Exception('Failed to convert image to WebP.');
+            error_log('Failed to convert PNG to WebP. Path: ' . $file_pathnew);
+            imagedestroy($sourceImage);
+            return false;
         }
-
+    } catch (\Throwable $th) {
+        error_log('Error in image conversion: ' . $th->getMessage());
         imagedestroy($sourceImage);
-
-        return $returnFilename;
-    } catch (Exception $e) {
-        error_log('Error: ' . $e->getMessage());
         return false;
     }
+
+    imagedestroy($sourceImage);
+    return $retunfilename;
 }
 
 function uniqueID($prefix_name, $auto_increment_id)
@@ -145,4 +171,39 @@ function logCustomerHistory($customer_id, $customer_no, $action_type, $old_value
         $stmt->execute();
         $stmt->close();
     }
+}
+
+function getUserName($user)
+{
+    global $conn;
+    $result = "";
+
+    $checkUser = $conn->query("SELECT `name` FROM `user` WHERE `id`='$user'");
+    if ($checkUser->num_rows > 0) {
+        if ($userData = $checkUser->fetch_assoc()) {
+            $result = $userData['name'];
+        }
+    }
+
+    return $result;
+}
+
+function generateUniqueReferralCode($conn)
+{
+    $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $codeLength = 5;
+    do {
+        $code = '';
+        for ($i = 0; $i < $codeLength; $i++) {
+            $code .= $characters[rand(0, strlen($characters) - 1)];
+        }
+        // Check uniqueness
+        $stmt = $conn->prepare("SELECT id FROM `customers` WHERE `referral_code` = ? AND `deleted_at` = 0");
+        $stmt->bind_param("s", $code);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $exists = $result->num_rows > 0;
+        $stmt->close();
+    } while ($exists);
+    return $code;
 }
