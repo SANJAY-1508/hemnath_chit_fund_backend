@@ -146,3 +146,18 @@ function logCustomerHistory($customer_id, $customer_no, $action_type, $old_value
         $stmt->close();
     }
 }
+
+function getUserName($user)
+{
+    global $conn;
+    $result = "";
+
+    $checkUser = $conn->query("SELECT `name` FROM `user` WHERE `id`='$user'");
+    if ($checkUser->num_rows > 0) {
+        if ($userData = $checkUser->fetch_assoc()) {
+            $result = $userData['name'];
+        }
+    }
+
+    return $result;
+}
