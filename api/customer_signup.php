@@ -33,6 +33,7 @@ if ($action === "signup" && isset($obj->customer_name) && isset($obj->mobile_num
     $mobile_number = trim($obj->mobile_number);
     $email_id = trim($obj->email_id);
     $password = trim($obj->password);
+    $provided_referral_code = isset($obj->referral_code) ? trim($obj->referral_code) : null;
 
     if (!empty($customer_name) && !empty($mobile_number) && !empty($email_id) && !empty($password)) {
 
@@ -45,12 +46,32 @@ if ($action === "signup" && isset($obj->customer_name) && isset($obj->mobile_num
             $mobileCheck = $stmt->get_result();
 
             if ($mobileCheck->num_rows == 0) {
+
+                $referred_by_id = null;
+                if (!empty($provided_referral_code)) {
+                    $stmtCheck = $conn->prepare("SELECT `customer_id` FROM `customers` WHERE `referral_code` = ? AND `deleted_at` = 0");
+                    $stmtCheck->bind_param("s", $provided_referral_code);
+                    $stmtCheck->execute();
+                    $resultCheck = $stmtCheck->get_result();
+                    if ($row = $resultCheck->fetch_assoc()) {
+                        $referred_by_id = $row['customer_id'];
+                    } else {
+                        $output = ["head" => ["code" => 400, "msg" => "Invalid referral code"]];
+                        echo json_encode($output);
+                        exit;
+                    }
+                    $stmtCheck->close();
+                }
+
+
+                $generated_referral_code = generateUniqueReferralCode($conn);
+
                 // Hash password
                 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
 
                 // Insert new customer
-                $stmtInsert = $conn->prepare("INSERT INTO `customers` (`customer_name`, `mobile_number`, `email_id`, `password`, `created_at_datetime`, `deleted_at`) VALUES (?, ?, ?, ?, NOW(), 0)");
-                $stmtInsert->bind_param("ssss", $customer_name, $mobile_number, $email_id, $hashedPassword);
+                $stmtInsert = $conn->prepare("INSERT INTO `customers` (`customer_name`, `mobile_number`, `email_id`, `password`, `referral_code`, `referred_by_code`, `referred_by_id`, `created_at_datetime`, `deleted_at`) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0)");
+                $stmtInsert->bind_param("sssssss", $customer_name, $mobile_number, $email_id, $hashedPassword, $generated_referral_code, $provided_referral_code, $referred_by_id);
 
                 if ($stmtInsert->execute()) {
                     $insertId = $stmtInsert->insert_id;
@@ -82,6 +103,10 @@ if ($action === "signup" && isset($obj->customer_name) && isset($obj->mobile_num
                         $remarks = "Customer signed up successfully";
                     }
 
+
+                    if ($provided_referral_code) {
+                        $remarks .= " via referral code: $provided_referral_code";
+                    }
 
                     logCustomerHistory($customer['customer_id'], $customer['customer_no'], 'created', null, $customer, $remarks, $created_by_id, $created_by_name);
 

@@ -187,3 +187,23 @@ function getUserName($user)
 
     return $result;
 }
+
+function generateUniqueReferralCode($conn)
+{
+    $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $codeLength = 5;
+    do {
+        $code = '';
+        for ($i = 0; $i < $codeLength; $i++) {
+            $code .= $characters[rand(0, strlen($characters) - 1)];
+        }
+        // Check uniqueness
+        $stmt = $conn->prepare("SELECT id FROM `customers` WHERE `referral_code` = ? AND `deleted_at` = 0");
+        $stmt->bind_param("s", $code);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $exists = $result->num_rows > 0;
+        $stmt->close();
+    } while ($exists);
+    return $code;
+}
