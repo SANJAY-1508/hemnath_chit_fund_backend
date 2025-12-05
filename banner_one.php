@@ -87,6 +87,7 @@ if (isset($obj->search_text)) {
 } else if (isset($obj->current_user_id) && isset($obj->image_url)) {
     $image_url = $obj->image_url;
     $current_user_id = $obj->current_user_id;
+
     if (!empty($current_user_id)) {
 
         if (numericCheck($current_user_id)) {
@@ -94,12 +95,21 @@ if (isset($obj->search_text)) {
             $current_user_name = getUserName($current_user_id);
 
             if (!empty($current_user_name)) {
+
                 if (!empty($image_url)) {
-                    $outputFilePath = "../uploads/banner_one/";
+
+                    $outputFilePath = "./uploads/banner_one/";
+
+                    // Create folder automatically if missing
+                    if (!file_exists($outputFilePath)) {
+                        mkdir($outputFilePath, 0777, true);
+                    }
 
                     $profile_path = pngImageToWebP($image_url, $outputFilePath);
 
-                    $createBanner = "INSERT INTO `banner_one`(`img`, `delete_at`, `created_by`, `created_name`, `created_date`) VALUES ('$profile_path',0,'$current_user_id','$current_user_name ','$timestamp')";
+                    $createBanner = "INSERT INTO `banner_one`(`img`, `delete_at`, `created_by`, `created_name`, `created_date`) 
+                                     VALUES ('$profile_path',0,'$current_user_id','$current_user_name','$timestamp')";
+
                     if ($conn->query($createBanner)) {
                         $output["head"]["code"] = 200;
                         $output["head"]["msg"] = "Successfully Banner Created";
