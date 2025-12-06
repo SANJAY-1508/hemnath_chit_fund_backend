@@ -93,17 +93,18 @@ if ($action === "list" && isset($obj->customer_id)) {
 }
 
 /* ===============================================================
-   3️⃣ MARK AS SEEN (Customer viewed manager messages)
+   3️⃣ MARK AS SEEN (Update delivered to seen for specified sender)
    ==============================================================*/
-if ($action === "seen" && isset($obj->customer_id)) {
+if ($action === "seen" && isset($obj->customer_id) && isset($obj->sender)) {
     $cid = $obj->customer_id;
+    $sender = $obj->sender;
 
     $stmt = $conn->prepare("
         UPDATE chat_messages 
         SET status = 'seen'
-        WHERE customer_id = ? AND sender='manager' AND status IN ('sent','delivered')
+        WHERE customer_id = ? AND sender = ? AND status = 'delivered'
     ");
-    $stmt->bind_param("s", $cid);
+    $stmt->bind_param("ss", $cid, $sender);
     $stmt->execute();
 
     echo json_encode(["head" => ["code" => 200, "msg" => "Seen Updated"]]);
@@ -111,17 +112,18 @@ if ($action === "seen" && isset($obj->customer_id)) {
 }
 
 /* ===============================================================
-   4️⃣ DELIVERED (Manager fetched customer messages => mark them delivered)
+   4️⃣ DELIVERED (Update sent to delivered for specified sender)
    ==============================================================*/
-if ($action === "deliver" && isset($obj->customer_id)) {
+if ($action === "deliver" && isset($obj->customer_id) && isset($obj->sender)) {
     $cid = $obj->customer_id;
+    $sender = $obj->sender;
 
     $stmt = $conn->prepare("
         UPDATE chat_messages 
         SET status = 'delivered'
-        WHERE customer_id = ? AND sender='customer' AND status = 'sent'
+        WHERE customer_id = ? AND sender = ? AND status = 'sent'
     ");
-    $stmt->bind_param("s", $cid);
+    $stmt->bind_param("ss", $cid, $sender);
     $stmt->execute();
 
     echo json_encode(["head" => ["code" => 200, "msg" => "Delivered updated"]]);
