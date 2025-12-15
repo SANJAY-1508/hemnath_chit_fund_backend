@@ -12,6 +12,7 @@ $obj = json_decode($json);
 $output = array();
 date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
+
 if (isset($obj->search_text)) {
     // <<<<<<<<<<===================== This is to list feedbacks =====================>>>>>>>>>>
     $search_text = $obj->search_text;
@@ -30,8 +31,53 @@ if (isset($obj->search_text)) {
         $output["head"]["msg"] = "Feedback Details Not Found";
         $output["body"]["feedback"] = [];
     }
+}
+// <<<<<<<<<<===================== List feedbacks for a specific customer =====================>>>>>>>>>>
+elseif (isset($obj->list_customer_id)) {
+    $list_customer_id = $obj->list_customer_id;
+    $sql = "SELECT `id`, `customer_feedback_id`, `customer_id`, `customer_name`, `customer_feedback_message`, `customer_feedback_rating`, `created_date` FROM `customer_feedback` WHERE `deleted_at` = 0 AND `customer_id` = '$list_customer_id' ORDER BY `created_date` DESC";
+    $result = $conn->query($sql);
+    if ($result->num_rows > 0) {
+        $output["head"]["code"] = 200;
+        $output["head"]["msg"] = "Success";
+        $count = 0;
+        while ($row = $result->fetch_assoc()) {
+            $output["body"]["feedback"][$count] = $row;
+            $count++;
+        }
+    } else {
+        $output["head"]["code"] = 200;
+        $output["head"]["msg"] = "No Feedbacks Found";
+        $output["body"]["feedback"] = [];
+    }
+} else if (isset($obj->edit_feedback_id) && isset($obj->customer_id) && isset($obj->customer_feedback_message) && isset($obj->customer_feedback_rating)) {
+    // <<<<<<<<<<===================== Update existing feedback =====================>>>>>>>>>>
+    $edit_feedback_id = $obj->edit_feedback_id;
+    $customer_id = $obj->customer_id;
+    $customer_feedback_message = $obj->customer_feedback_message;
+    $customer_feedback_rating = $obj->customer_feedback_rating;
+    if (!empty($edit_feedback_id) && !empty($customer_id) && !empty($customer_feedback_message) && !empty($customer_feedback_rating)) {
+        // Verify the feedback belongs to the customer
+        $check = $conn->query("SELECT `id` FROM `customer_feedback` WHERE `customer_feedback_id` = '$edit_feedback_id' AND `customer_id` = '$customer_id' AND `deleted_at` = 0");
+        if ($check->num_rows > 0) {
+            $updateFeedback = "UPDATE `customer_feedback` SET `customer_feedback_message`='$customer_feedback_message', `customer_feedback_rating`='$customer_feedback_rating' WHERE `customer_feedback_id`='$edit_feedback_id'";
+            if ($conn->query($updateFeedback)) {
+                $output["head"]["code"] = 200;
+                $output["head"]["msg"] = "Successfully Feedback Updated";
+            } else {
+                $output["head"]["code"] = 400;
+                $output["head"]["msg"] = "Failed to update. Please try again." . $conn->error;
+            }
+        } else {
+            $output["head"]["code"] = 400;
+            $output["head"]["msg"] = "Feedback not found or access denied.";
+        }
+    } else {
+        $output["head"]["code"] = 400;
+        $output["head"]["msg"] = "Please provide all the required details.";
+    }
 } else if (isset($obj->customer_id) && isset($obj->customer_feedback_message) && isset($obj->customer_feedback_rating)) {
-    // <<<<<<<<<<===================== This is to Create feedback =====================>>>>>>>>>>
+    // <<<<<<<<<<===================== Create new feedback =====================>>>>>>>>>>
     $customer_id = $obj->customer_id;
     $customer_feedback_message = $obj->customer_feedback_message;
     $customer_feedback_rating = $obj->customer_feedback_rating;
@@ -41,7 +87,7 @@ if (isset($obj->search_text)) {
         if ($customerCheck->num_rows > 0) {
             $customer = $customerCheck->fetch_assoc();
             $customer_name = $customer['customer_name'];
-            // Assuming multiple feedbacks per customer are allowed; no uniqueness check
+            // Insert new feedback
             $createFeedback = "INSERT INTO `customer_feedback` (`customer_id`, `customer_name`, `customer_feedback_message`, `customer_feedback_rating`, `created_date`) VALUES ('$customer_id', '$customer_name', '$customer_feedback_message', '$customer_feedback_rating', '$timestamp')";
             if ($conn->query($createFeedback)) {
                 $id = $conn->insert_id;

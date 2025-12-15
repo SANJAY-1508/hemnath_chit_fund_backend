@@ -17,14 +17,14 @@ $output = array();
 date_default_timezone_set( 'Asia/Calcutta' );
 $timestamp = date( 'Y-m-d H:i:s' );
 
-if ( isset( $obj->search_text ) ) {
+if (isset( $obj->search_text ) ) {
     $sql = 'SELECT * FROM `bank_details` WHERE `delete_at`=0';
     $result = $conn->query( $sql );
     if ( $result->num_rows > 0 ) {
         $count = 0;
          while ( $row = $result->fetch_assoc() ) {
             if ( $row[ 'qr_code_img' ] != null && $row[ 'qr_code_img' ] != 'null' && strlen( $row[ 'qr_code_img' ] ) > 0 ) {
-                $imgLink = 'https://' . $_SERVER[ 'SERVER_NAME' ] . '/uploads/bank_qr_codes/' . $row[ 'qr_code_img' ];
+                $imgLink = 'https://' . $_SERVER[ 'SERVER_NAME' ] . '/zenchitbilling/uploads/bank_qr_codes/' . $row[ 'qr_code_img' ];
                 $row[ 'qr_code_img' ] = $imgLink;
             }
             $output[ 'body' ][ 'bank_details' ][] = $row;

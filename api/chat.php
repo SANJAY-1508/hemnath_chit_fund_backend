@@ -65,7 +65,7 @@ if ($action === "send") {
 /* ===============================================================
    2️⃣ FETCH MESSAGES (Customer Inbox)
    ==============================================================*/
-if ($action === "list" && isset($obj->customer_id)) {
+else if ($action === "list" && isset($obj->customer_id)) {
 
     $cid = $obj->customer_id;
 
@@ -95,7 +95,7 @@ if ($action === "list" && isset($obj->customer_id)) {
 /* ===============================================================
    3️⃣ MARK AS SEEN (Update delivered to seen for specified sender)
    ==============================================================*/
-if ($action === "seen" && isset($obj->customer_id) && isset($obj->sender)) {
+else if ($action === "seen" && isset($obj->customer_id) && isset($obj->sender)) {
     $cid = $obj->customer_id;
     $sender = $obj->sender;
 
@@ -114,7 +114,7 @@ if ($action === "seen" && isset($obj->customer_id) && isset($obj->sender)) {
 /* ===============================================================
    4️⃣ DELIVERED (Update sent to delivered for specified sender)
    ==============================================================*/
-if ($action === "deliver" && isset($obj->customer_id) && isset($obj->sender)) {
+else if ($action === "deliver" && isset($obj->customer_id) && isset($obj->sender)) {
     $cid = $obj->customer_id;
     $sender = $obj->sender;
 

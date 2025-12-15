@@ -28,7 +28,7 @@ if (isset($obj->search_text)) {
             $output["body"]["banner_two"][$count] = $row;
             $imgLink = null;
             if ($row["img"] != null && $row["img"] != 'null' && strlen($row["img"]) > 0) {
-                $imgLink = "https://" . $_SERVER['SERVER_NAME'] . "/uploads/banner_two/" . $row["img"];
+                $imgLink = "https://" . $_SERVER['SERVER_NAME'] . "/zenchitbilling/uploads/banner_two/" . $row["img"];
                 $output["body"]["banner_two"][$count]["img"] = $imgLink;
             } else {
                 $output["body"]["banner_two"][$count]["img"] = $imgLink;
