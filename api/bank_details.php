@@ -18,7 +18,7 @@ date_default_timezone_set( 'Asia/Calcutta' );
 $timestamp = date( 'Y-m-d H:i:s' );
 
 if (isset( $obj->search_text ) ) {
-    $sql = 'SELECT * FROM `bank_details` WHERE `delete_at`=0';
+    $sql = 'SELECT * FROM `bank_details` WHERE `delete_at`=0 ORDER BY `id` DESC';
     $result = $conn->query( $sql );
     if ( $result->num_rows > 0 ) {
         $count = 0;

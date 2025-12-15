@@ -23,7 +23,7 @@ if (isset($obj->search_text)) {
     // <<<<<<<<<<===================== This is to list customers =====================>>>>>>>>>>
     $search_text = $obj->search_text;
     $sql = "SELECT * FROM `customers` 
-        WHERE `deleted_at` = 0 AND `customer_name` LIKE '%$search_text%'";
+        WHERE `deleted_at` = 0 AND `customer_name` LIKE '%$search_text%' ORDER BY `id` DESC";
 
     $result = $conn->query($sql);
     if ($result->num_rows > 0) {

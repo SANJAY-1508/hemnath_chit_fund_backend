@@ -20,7 +20,7 @@ $timestamp = date('Y-m-d H:i:s');
 if (isset($obj->search_text)) {
     // <<<<<<<<<<===================== This is to list users =====================>>>>>>>>>>
     $search_text = $obj->search_text;
-    $sql = "SELECT `id`, `user_id`,`user_name`, `name`, `phone`, `img`, `role`, `password`, `deleted_at`, `created_date` FROM `user` WHERE `deleted_at` = 0 AND `name` LIKE '%$search_text%'";
+    $sql = "SELECT `id`, `user_id`,`user_name`, `name`, `phone`, `img`, `role`, `password`, `deleted_at`, `created_date` FROM `user` WHERE `deleted_at` = 0 AND `name` LIKE '%$search_text%' ORDER BY `id` DESC";
     $result = $conn->query($sql);
     if ($result->num_rows > 0) {
         $output["head"]["code"] = 200;

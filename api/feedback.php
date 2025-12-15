@@ -16,7 +16,7 @@ $timestamp = date('Y-m-d H:i:s');
 if (isset($obj->search_text)) {
     // <<<<<<<<<<===================== This is to list feedbacks =====================>>>>>>>>>>
     $search_text = $obj->search_text;
-    $sql = "SELECT `id`, `customer_feedback_id`, `customer_id`, `customer_name`, `customer_feedback_message`, `customer_feedback_rating`, `created_date` FROM `customer_feedback` WHERE `deleted_at` = 0 AND `customer_feedback_message` LIKE '%$search_text%'";
+    $sql = "SELECT `id`, `customer_feedback_id`, `customer_id`, `customer_name`, `customer_feedback_message`, `customer_feedback_rating`, `created_date` FROM `customer_feedback` WHERE `deleted_at` = 0 AND `customer_feedback_message` LIKE '%$search_text%'ORDER BY `id` DESC";
     $result = $conn->query($sql);
     if ($result->num_rows > 0) {
         $output["head"]["code"] = 200;
